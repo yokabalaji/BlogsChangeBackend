@@ -48,7 +48,7 @@ db.Comment.belongsTo(db.Article,{foreignKey:"articleId"});
 db.Like.belongsTo(db.Article,{foreignKey:"articleId"});
 db.Rating.belongsTo(db.Article,{foreignKey:"articleId"});
 
-db.sequelize.sync({force:true}).then(()=>{
+db.sequelize.sync().then(()=>{
     console.log(`yes re-sync done`)
 });
 
