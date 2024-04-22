@@ -1,4 +1,4 @@
-const db = require('../models/index.js');
+const db = require('../Models/index.js');
 const User = db.User;
 const Article = db.Article;
 const Comment = db.Comment;
@@ -15,6 +15,47 @@ const { where } = require('sequelize');
 const register= async (request, response) => {
     const {username,email, password} = request.body
      // console.log(email)
+     const empEmail = email;
+     console.log(empEmail);
+   
+     function isValidEmail(empEmail) {
+       const regex = /^[a-zA-Z0-9.+_-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,15}$/;
+       return regex.test(empEmail);
+     }
+
+     function isStrongPassword(password) {
+      // Regular expressions for password criteria
+      const minLength = 8;
+      const uppercaseRegex = /[A-Z]/;
+      const lowercaseRegex = /[a-z]/;
+      const digitRegex = /\d/;
+      const specialCharRegex = /[!@#$%^&*()\-_=+[\]{};:'",.<>/?\\|~`]/;
+  
+      // Check if password meets all criteria
+      return (
+          password.length >= minLength &&
+          uppercaseRegex.test(password) &&
+          lowercaseRegex.test(password) &&
+          digitRegex.test(password) &&
+          specialCharRegex.test(password)
+      );
+  }
+   
+     try {
+       if (username === null || username === "" ) {
+         console.log("Please check the  userName");
+         response.status(406).send("Please check the userName");
+       } else if (
+         email === null ||
+         !isValidEmail(email) ||
+         email === ""
+       ) {
+         console.log("Please check the user Mail");
+         response.status(406).send("Please check the user Mail");
+       } else if (password === null || !isStrongPassword(password))  {
+         console.log("Please give the Strong Password");
+         response.status(406).send("Please give the Strong Password");
+       }else {
     const hashedPassword = await bcrypt.hash(password, 10)
   
     const getUserQuery = await User.findOne({ where: { email: request.body.email } });
@@ -27,10 +68,6 @@ const register= async (request, response) => {
       response.status(400)
       response.send('User already exists')
     } else {
-      if (password.length < 6) {
-        response.status(400)
-        response.send('Password is too short')
-      } else {
         const info={
             username:username,
             email:email,
@@ -44,6 +81,10 @@ const register= async (request, response) => {
       }
     }
   }
+  catch(err){
+    console.log(err);
+  }
+  }
 
 
 //       login
@@ -52,10 +93,12 @@ const register= async (request, response) => {
 const loginUser=  async (request, response) => {
     const {email, password} = request.body
     const payload = {email}
-  
+ try{
     const getUserQuery =  await User.findOne({where:{email:email}});
- // console.log("getsssss   "+getUserQuery)
     const dbUser = getUserQuery.password
+ 
+ // console.log("getsssss   "+getUserQuery)
+    
   //  console.log(dbUser)
   
     if (dbUser === undefined) {
@@ -64,24 +107,64 @@ const loginUser=  async (request, response) => {
     } else {
       const isPasswordMatched = await bcrypt.compare(password, dbUser)
       if (isPasswordMatched) {
-        const jwtToken = jwt.sign(payload, 'itsBalajiPassword')
+        const jwtToken = jwt.sign(payload, 'itsBalajiPassword',{ expiresIn: '1s' })
+/////      changes
+
+        const refreshToken = jwt.sign(payload, 'secretKey', { expiresIn: '1d' });
+
+        response
+.cookie('refreshToken', refreshToken, { httpOnly: true, sameSite: 'strict' })
+.header('Authorization', jwtToken);
+
+//////   changesss complete
+
         response.send({jwtToken})
       } else {
         response.status(400)
         response.send('Invalid password')
       }
     }
+  }catch(err){
+    response.status(400);
+    response.send("user does not exit");
+  }
   }
 
+  //changesss   
+
+  //                refress the token 
+
+ // app.post('/refresh', 
+  const refreshToken=(req, res) => {
+    const refreshToken = req.cookies['refreshToken'];
+    if (!refreshToken) {
+      return res.status(401).send('Access Denied. No refresh token provided.');
+    }
+  
+    try {
+      const decoded = jwt.verify(refreshToken, secretKey);
+      const jwtToken = jwt.sign({ user: decoded.email }, 'itsBalajiPassword', { expiresIn: '1h' });
+  
+      res
+        .header('Authorization', jwtToken)
+        .send(decoded.email);
+    } catch (error) {
+      return res.status(400).send('Invalid refresh token.');
+    }
+  }
+
+  //changesssssss complete
+
  
  
-  //       Authorization
+  //       AuthenticateUser
 
   const authenticateToken = (request, response, next) => {
+   
     const authToken = request.headers['authorization']
-    console.log("tokennn   "+authToken)
-    let jwtToken
-    if (authToken !== undefined) {
+  //  console.log("tokennn   "+authToken)
+    let jwtToken;
+    if (authToken !== undefined || authToken!==null) {
       jwtToken = authToken.split(' ')[1]
       console.log(jwtToken)
     }
@@ -93,17 +176,23 @@ const loginUser=  async (request, response) => {
         if (error) {
           response.status(401)
           response.send('Invalid JWT Token itssssss')
-          console.log(error)
+     //     console.log(error)
         } else {
-          console.log("oneeeee");
+          try{
+       //   console.log("oneeeee");
           const getUser = await User.findOne({where:{email:payload.email}})
           request.userId = getUser.id
-          console.log("userId  "+request.userId)
+        //  console.log("userId  "+request.userId)
           next()
+        }catch(err){
+          console.log(err);
+          response.status(400).send("please login user");
+        }
          
         }
       })
     }
+
   }
 
 // userArticle 
@@ -150,11 +239,26 @@ const userLikes= async (request, response, next) => {
     like:request.body.like,
     
   }
+  const alreaduGiveLike=await Like.findOne({where:{
+    userId:id,
+    articleId:articleId
+  }});
+  console.log(alreaduGiveLike);
+  if(alreaduGiveLike===null){
   const likeArticle=await Like.create(info);
   response.status(200).send(likeArticle);
   console.log(likeArticle);
   next()
+  }else{
+    const likeId=alreaduGiveLike.id;
+    console.log(likeId);
+    const likeArticle=await Like.update(request.body,{where :{id:likeId}});
+  response.status(200).send(likeArticle);
+  console.log(likeArticle);
+
+  }
 }
+
 
 //      userRating
 const userRatings= async (request, response, next) => {
@@ -166,11 +270,40 @@ const userRatings= async (request, response, next) => {
     rating:request.body.rating,
     
   }
-  const ratingArticle=await Rating.create(info);
+
+  const alreaduGiveRate=await Rating.findOne({where:{
+    userId:id,
+    articleId:articleId
+  }});
+  console.log(alreaduGiveRate);
+  if(alreaduGiveRate===null){
+  if(info.rating>=1 && info.rating<=5){
+    const ratingArticle=await Rating.create(info);
   response.status(200).send(ratingArticle);
   console.log(ratingArticle);
   next()
+}else{
+  response.status(400).send("please give 1 to 5 rating");
+  console.log("please give 1 to 5 rating");
+
 }
+  }else{
+    if(info.rating>=1 && info.rating<=5){
+
+      const rateId=alreaduGiveRate.id;
+      console.log(rateId);
+      const rateArticle=await Rating.update(request.body,{where :{id:rateId}});
+    response.status(200).send(rateArticle);
+    console.log(rateArticle);
+
+    }
+
+
+
+  }
+
+  }
+  
 
 //      get all articles
 
@@ -195,4 +328,4 @@ const currentUserArticle= async (request, response, next) => {
 
 module.exports = {
     register,loginUser,authenticateToken,userArticle,userComment,userLikes,userRatings,
-    userArticleAll,currentUserArticle  };
+    userArticleAll,currentUserArticle,refreshToken  };

@@ -1,5 +1,6 @@
 const {Sequelize,DataTypes }= require('sequelize');
 const dbConfig = require('../Config/dbConfig.js');
+const { FORCE } = require('sequelize/lib/index-hints');
 
 const sequelize = new Sequelize(dbConfig.db, dbConfig.user, dbConfig.password, {
   host: dbConfig.host,
@@ -25,11 +26,11 @@ const db={};
 db.Sequelize=Sequelize;
 db.sequelize=sequelize;
 
-db.User=require('./users.model.js')(sequelize,DataTypes);
-db.Article=require('./articles.models.js')(sequelize,DataTypes);
-db.Comment=require('./comments.models.js')(sequelize,DataTypes);
-db.Like=require('./likes.models.js')(sequelize,DataTypes);
-db.Rating=require('./ratings.models.js')(sequelize,DataTypes);
+db.User=require('./User.models.js')(sequelize,DataTypes);
+db.Article=require('./Article.models.js')(sequelize,DataTypes);
+db.Comment=require('./Comment.models.js')(sequelize,DataTypes);
+db.Like=require('./Like.models.js')(sequelize,DataTypes);
+db.Rating=require('./Rating.models.js')(sequelize,DataTypes);
 
 db.User.hasMany(db.Article,{foreignKey:"userId"});
 db.User.hasMany(db.Comment,{foreignKey:"userId"});

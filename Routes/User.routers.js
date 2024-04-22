@@ -1,5 +1,5 @@
 
-const userControllers=require('../Controllers/users.controllers.js');
+const userControllers=require('../Controllers/User.controller.js');
 
 const router=require("express").Router();
 
@@ -23,6 +23,6 @@ router.get('/allarticle/',userControllers.userArticleAll);
 
 router.get('/current/user/article',userControllers.authenticateToken,userControllers.currentUserArticle)
 
-
+router.post('/refresh',userControllers.refreshToken)
 
 module.exports=router;
